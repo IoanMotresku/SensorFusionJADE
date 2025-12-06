@@ -90,6 +90,11 @@ public class SystemStarter {
         try { Thread.sleep(2500); } catch (InterruptedException e) {}
         System.out.println("AUTOSTART: Se deschide ControllerGui...");
         requestControllerGui();
+
+        // 4. Lansăm agentul de statistici
+        try { Thread.sleep(2500); } catch (InterruptedException e) {}
+        System.out.println("AUTOSTART: Se deschide StatisticsGui...");
+        launchStatisticsAgent();
     }
 
     /**
@@ -114,6 +119,27 @@ public class SystemStarter {
 
         } catch (Exception e) {
             System.err.println("AUTOSTART: Eroare la solicitarea GUI-ului de monitorizare.");
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Lansează StatisticsAgent.
+     */
+    private static void launchStatisticsAgent() {
+        try {
+            Runtime rt = Runtime.instance();
+            Profile p = new ProfileImpl(false); // Profil pentru container periferic
+            p.setParameter(Profile.MAIN_HOST, "localhost");
+            p.setParameter(Profile.MAIN_PORT, "1099");
+            AgentContainer peripheralContainer = rt.createAgentContainer(p);
+
+            // Lansăm StatisticsAgent
+            String agentName = "StatisticsAgent-" + System.currentTimeMillis();
+            peripheralContainer.createNewAgent(agentName, "clase.StatisticsAgent", null).start();
+
+        } catch (Exception e) {
+            System.err.println("AUTOSTART: Eroare la lansarea StatisticsAgent.");
             e.printStackTrace();
         }
     }
