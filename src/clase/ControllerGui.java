@@ -30,7 +30,17 @@ public class ControllerGui extends JFrame {
         // Configurare fereastră
         setSize(950, 600);
         setLocation(400, 100);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // Important: Doar distruge fereastra
+        
+        // Adăugăm un listener pentru a notifica agentul la închidere
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+                if (myAgent != null) {
+                    myAgent.guiClosed();
+                }
+            }
+        });
         
         // Inițializare componente
         initComponents();

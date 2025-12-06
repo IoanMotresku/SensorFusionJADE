@@ -97,7 +97,25 @@ public class SensorAgent extends Agent {
     @Override
     protected void takeDown() {
         try { DFService.deregister(this); } catch (FIPAException e) {}
-        if (myGui != null) myGui.dispose();
+        
+        // Asigurăm că închiderea GUI-ului se face pe Event Dispatch Thread (EDT)
+        // pentru a evita excepții de tip InterruptedException
+        if (myGui != null) {
+            SwingUtilities.invokeLater(() -> myGui.dispose());
+        }
+    }
+
+    /**
+     * Metodă publică ce poate fi apelată (de ex. de la GUI)
+     * pentru a cere agentului să se închidă în mod sigur.
+     */
+    public void requestToDoDelete() {
+        addBehaviour(new OneShotBehaviour(this) {
+            @Override
+            public void action() {
+                myAgent.doDelete();
+            }
+        });
     }
 
     public void processSensorData(int val) {

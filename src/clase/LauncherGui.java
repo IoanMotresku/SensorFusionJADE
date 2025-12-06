@@ -26,12 +26,6 @@ public class LauncherGui extends JFrame {
     public LauncherGui() {
         super("Lansator Platformă JADE");
 
-        try {
-            UIManager.setLookAndFeel(new FlatDarkLaf());
-        } catch (Exception ex) {
-            System.err.println("Failed to initialize LaF");
-        }
-        
         setSize(600, 500);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -112,82 +106,153 @@ public class LauncherGui extends JFrame {
         }
     }
     
-    private void launchAgents() {
-        launchButton.setEnabled(false);
-        launchButton.setText("Lansare în curs...");
-        logToConsole("Inițiere proces de lansare...");
-
-        // Dezactivăm spinner-ele după lansare
-        for (JSpinner spinner : sensorSpinners.values()) {
-            spinner.setEnabled(false);
-        }
-
-        new Thread(() -> {
-            try {
-                // 1. Pornire Platformă JADE
-                logToConsole("Pornire container JADE...");
-                jade.core.Runtime rt = jade.core.Runtime.instance();
-                jade.core.Profile p = new jade.core.ProfileImpl();
-                p.setParameter(jade.core.Profile.MAIN_HOST, "localhost");
-                p.setParameter(jade.core.Profile.GUI, "true"); // Pornim GUI-ul JADE pentru monitorizare
-                jade.wrapper.ContainerController mainContainer = rt.createMainContainer(p);
-                
-                // 2. Lansare agenți de sistem (Controller, DB)
-                logToConsole("Lansare agent Controller...");
-                mainContainer.createNewAgent("Controller", "clase.ControllerAgent", null).start();
-                
-                logToConsole("Lansare agent DatabaseManager...");
-                mainContainer.createNewAgent("DatabaseManager", "clase.DBAgent", null).start();
-
-                Thread.sleep(1000); // Pauză mică
-
-                // 3. Lansare agenți senzori pe baza selecției din GUI
-                for (Map.Entry<String, JSpinner> entry : sensorSpinners.entrySet()) {
-                    String sensorType = entry.getKey();
-                    int count = (Integer) entry.getValue().getValue();
-                    
-                    if (count > 0) {
-                        logToConsole("Se pregătesc " + count + " senzori de tip '" + sensorType + "'...");
-                        // Găsim configurarea pentru acest tip de senzor
-                        JSONObject config = findConfigForType(sensorType);
-                        if (config == null) {
-                            logToConsole("EROARE: Nu s-a găsit configurația pentru " + sensorType);
-                            continue;
-                        }
-
-                        for (int j = 1; j <= count; j++) {
-                            String agentName = config.getString("baseName") + j;
-                            String sensorId = "SENS-" + config.getString("type").substring(0, 4).toUpperCase() + "-" + j;
-
-                            Object[] agentArgs = new Object[]{
-                                sensorId, config.getString("type"), config.getString("unit"),
-                                config.getInt("sliderMin"), config.getInt("sliderMax"),
-                                config.getInt("hwMin"), config.getInt("hwMax"),
-                                config.getInt("safeMin"), config.getInt("safeMax")
-                            };
-                            
-                            mainContainer.createNewAgent(agentName, "clase.SensorAgent", agentArgs).start();
-                            logToConsole(" > Agent '" + agentName + "' lansat.");
-                            Thread.sleep(100); // Pauză mică între lansări
-                        }
-                    }
-                }
-                
-                logToConsole("===================================");
-                logToConsole("Lansare finalizată cu succes!");
-                logToConsole("===================================");
-                SwingUtilities.invokeLater(() -> launchButton.setText("Finalizat"));
-
-            } catch (Exception e) {
-                logToConsole("EROARE CRITICĂ LA LANSARE: " + e.getMessage());
-                e.printStackTrace();
-                 SwingUtilities.invokeLater(() -> {
-                    launchButton.setText("Eroare la lansare");
-                    launchButton.setBackground(new Color(200, 50, 50));
-                 });
+        private void launchAgents() {
+    
+            launchButton.setEnabled(false);
+    
+            launchButton.setText("Lansare în curs...");
+    
+            logToConsole("Inițiere proces de lansare...");
+    
+    
+    
+            // Dezactivăm spinner-ele după lansare
+    
+            for (JSpinner spinner : sensorSpinners.values()) {
+    
+                spinner.setEnabled(false);
+    
             }
-        }).start();
-    }
+    
+    
+    
+            new Thread(() -> {
+    
+                try {
+    
+                    // 1. Obținem instanța runtime JADE
+    
+                    jade.core.Runtime rt = jade.core.Runtime.instance();
+    
+                    
+    
+                    // 2. Creăm un profil pentru un container PERIFERIC
+    
+                    logToConsole("Conectare la containerul principal JADE...");
+    
+                    jade.core.Profile p = new jade.core.ProfileImpl();
+    
+                    p.setParameter(jade.core.Profile.MAIN_HOST, "localhost");
+    
+                    p.setParameter(jade.core.Profile.MAIN_PORT, "1099");
+    
+                    
+    
+                    // 3. Creăm containerul periferic. Agenții vor trăi aici.
+    
+                    jade.wrapper.AgentContainer peripheralContainer = rt.createAgentContainer(p);
+    
+                    logToConsole("Conectare reușită. Se lansează senzorii...");
+    
+                    
+    
+                    Thread.sleep(1000); // Pauză mică
+    
+    
+    
+                    // 4. Lansare agenți senzori pe baza selecției din GUI
+    
+                    for (Map.Entry<String, JSpinner> entry : sensorSpinners.entrySet()) {
+    
+                        String sensorType = entry.getKey();
+    
+                        int count = (Integer) entry.getValue().getValue();
+    
+                        
+    
+                        if (count > 0) {
+    
+                            logToConsole("Se pregătesc " + count + " senzori de tip '" + sensorType + "'...");
+    
+                            JSONObject config = findConfigForType(sensorType);
+    
+                            if (config == null) {
+    
+                                logToConsole("EROARE: Nu s-a găsit configurația pentru " + sensorType);
+    
+                                continue;
+    
+                            }
+    
+    
+    
+                            for (int j = 1; j <= count; j++) {
+    
+                                String agentName = config.getString("baseName") + j;
+    
+                                String sensorId = "SENS-" + config.getString("type").substring(0, 4).toUpperCase() + "-" + j;
+    
+    
+    
+                                Object[] agentArgs = new Object[]{
+    
+                                    sensorId, config.getString("type"), config.getString("unit"),
+    
+                                    config.getInt("sliderMin"), config.getInt("sliderMax"),
+    
+                                    config.getInt("hwMin"), config.getInt("hwMax"),
+    
+                                    config.getInt("safeMin"), config.getInt("safeMax")
+    
+                                };
+    
+                                
+    
+                                // Creăm agentul în containerul PERIFERIC
+    
+                                peripheralContainer.createNewAgent(agentName, "clase.SensorAgent", agentArgs).start();
+    
+                                logToConsole(" > Agent '" + agentName + "' lansat.");
+    
+                                Thread.sleep(100); // Pauză mică între lansări
+    
+                            }
+    
+                        }
+    
+                    }
+    
+                    
+    
+                    logToConsole("===================================");
+    
+                    logToConsole("Lansare finalizată cu succes!");
+    
+                    logToConsole("===================================");
+    
+                    SwingUtilities.invokeLater(() -> launchButton.setText("Finalizat"));
+    
+    
+    
+                } catch (Exception e) {
+    
+                    logToConsole("EROARE CRITICĂ LA LANSARE: " + e.getMessage());
+    
+                    e.printStackTrace();
+    
+                     SwingUtilities.invokeLater(() -> {
+    
+                        launchButton.setText("Eroare la lansare");
+    
+                        launchButton.setBackground(new Color(200, 50, 50));
+    
+                     });
+    
+                }
+    
+            }).start();
+    
+        }
 
     private JSONObject findConfigForType(String type) {
         for (int i = 0; i < sensorConfigs.length(); i++) {

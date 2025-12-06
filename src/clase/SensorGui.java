@@ -39,7 +39,17 @@ public class SensorGui extends JFrame {
         // Configurare fereastră
         setSize(400, 450);
         setLocationRelativeTo(null); // Centrat
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        // IMPORTANT: Nu folosim EXIT_ON_CLOSE, care ar închide toată platforma JADE.
+        // În schimb, notificăm agentul să se închidă singur.
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+                if (myAgent != null) {
+                    myAgent.requestToDoDelete();
+                }
+            }
+        });
         setResizable(false);
 
         initComponents();
