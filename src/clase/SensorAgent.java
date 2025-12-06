@@ -3,6 +3,7 @@ package clase;
 import com.formdev.flatlaf.FlatDarkLaf;
 import jade.core.AID;
 import jade.core.Agent;
+import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.TickerBehaviour;
 import jade.domain.DFService;
@@ -10,6 +11,8 @@ import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
+
 import javax.swing.*;
 
 public class SensorAgent extends Agent {
@@ -25,17 +28,19 @@ public class SensorAgent extends Agent {
     private int HW_MAX;
     private int SAFE_MIN;
     private int SAFE_MAX;
+    private int activityTimeoutSeconds;
 
     private SensorGui myGui;
     private AID controllerAID = null;
+    private boolean registered = false; // Flag to track registration status
 
     @Override
     protected void setup() {
         // --- 1. PRELUARE ARGUMENTE (De la Launcher) ---
         Object[] args = getArguments();
         
-        if (args != null && args.length >= 9) {
-            // Ordinea contează: ID, Type, Unit, SliderMin, SliderMax, HwMin, HwMax, SafeMin, SafeMax
+        if (args != null && args.length >= 10) {
+            // Ordinea contează: ID, Type, Unit, SliderMin, SliderMax, HwMin, HwMax, SafeMin, SafeMax, Timeout
             try {
                 SENSOR_ID = (String) args[0];
                 SENSOR_TYPE = (String) args[1];
@@ -46,6 +51,7 @@ public class SensorAgent extends Agent {
                 HW_MAX = Integer.parseInt(args[6].toString());
                 SAFE_MIN = Integer.parseInt(args[7].toString());
                 SAFE_MAX = Integer.parseInt(args[8].toString());
+                activityTimeoutSeconds = Integer.parseInt(args[9].toString());
             } catch (Exception e) {
                 System.err.println("Eroare la parsarea argumentelor pentru " + getLocalName());
                 e.printStackTrace();
@@ -61,6 +67,7 @@ public class SensorAgent extends Agent {
             SLIDER_MIN = 0; SLIDER_MAX = 100;
             HW_MIN = 0; HW_MAX = 100;
             SAFE_MIN = 40; SAFE_MAX = 60;
+            activityTimeoutSeconds = 60; // Default timeout
         }
 
         // --- 2. RESTUL LOGICII (Identic cu înainte) ---
@@ -89,6 +96,32 @@ public class SensorAgent extends Agent {
         addBehaviour(new OneShotBehaviour() {
             @Override
             public void action() { searchForController(); }
+        });
+        
+        // Behavior to listen for registration confirmation
+        addBehaviour(new CyclicBehaviour(this) {
+            @Override
+            public void action() {
+                if (controllerAID == null) {
+                    block(1000); // Wait a bit before checking again
+                    return;
+                }
+                
+                MessageTemplate mt = MessageTemplate.and(
+                    MessageTemplate.MatchPerformative(ACLMessage.CONFIRM),
+                    MessageTemplate.MatchSender(controllerAID)
+                );
+                
+                ACLMessage msg = myAgent.receive(mt);
+                if (msg != null) {
+                    if ("REGISTRATION_CONFIRMED".equals(msg.getContent())) {
+                        System.out.println(getLocalName() + ": Înregistrare confirmată de către " + controllerAID.getLocalName());
+                        registered = true;
+                    }
+                } else {
+                    block();
+                }
+            }
         });
     }
 
@@ -138,13 +171,13 @@ public class SensorAgent extends Agent {
                     getLocalName(), SENSOR_TYPE, val, SENSOR_UNIT, status
                 );
 
-                if (controllerAID != null) {
+                if (controllerAID != null && registered) {
                     ACLMessage msg = new ACLMessage(performative);
                     msg.addReceiver(controllerAID);
                     msg.setContent(contentJson);
                     msg.setConversationId("sensor-data");
                     send(msg);
-                } else {
+                } else if (controllerAID == null) {
                     searchForController();
                 }
             }
@@ -168,7 +201,36 @@ public class SensorAgent extends Agent {
         template.addServices(sd);
         try {
             DFAgentDescription[] result = DFService.search(this, template);
-            if (result.length > 0) controllerAID = result[0].getName();
+            if (result.length > 0) {
+                AID newControllerAID = result[0].getName();
+                // Daca abia am gasit controller-ul, ne inregistram la el
+                if (controllerAID == null) {
+                    controllerAID = newControllerAID;
+                    sendRegistration();
+                }
+            }
         } catch (FIPAException fe) { fe.printStackTrace(); }
+    }
+
+    private void sendRegistration() {
+        addBehaviour(new OneShotBehaviour() {
+            @Override
+            public void action() {
+                if (controllerAID != null) {
+                    System.out.println(getLocalName() + ": Trimit mesaj de înregistrare către " + controllerAID.getLocalName());
+                    
+                    ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+                    msg.addReceiver(controllerAID);
+                    msg.setConversationId("sensor-registration");
+                    
+                    String contentJson = String.format(
+                        "{\"id\":\"%s\", \"type\":\"%s\", \"timeout\":%d}",
+                        getLocalName(), SENSOR_TYPE, activityTimeoutSeconds
+                    );
+                    msg.setContent(contentJson);
+                    send(msg);
+                }
+            }
+        });
     }
 }

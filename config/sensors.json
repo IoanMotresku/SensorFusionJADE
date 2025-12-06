@@ -9,7 +9,7 @@
     "hwMax": 100,
     "safeMin": 18,
     "safeMax": 25,
-    "count": 2
+    "activityTimeoutSeconds": 30
   },
   {
     "baseName": "SenzorPresiune",
@@ -21,7 +21,7 @@
     "hwMax": 150,
     "safeMin": 80,
     "safeMax": 110,
-    "count": 1
+    "activityTimeoutSeconds": 60
   },
   {
     "baseName": "SenzorUmiditate",
@@ -33,7 +33,7 @@
     "hwMax": 100,
     "safeMin": 30,
     "safeMax": 60,
-    "count": 2
+    "activityTimeoutSeconds": 30
   },
   {
     "baseName": "SenzorLumina",
@@ -45,6 +45,6 @@
     "hwMax": 800,
     "safeMin": 300,
     "safeMax": 500,
-    "count": 1
+    "activityTimeoutSeconds": 90
   }
 ]

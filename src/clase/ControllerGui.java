@@ -104,7 +104,10 @@ public class ControllerGui extends JFrame {
         table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         
         // Setăm renderer-ul custom pentru culori
-        table.setDefaultRenderer(Object.class, new StatusColorRenderer());
+        StatusColorRenderer renderer = new StatusColorRenderer();
+        for (int i=0; i<table.getColumnCount(); i++) {
+            table.getColumnModel().getColumn(i).setCellRenderer(renderer);
+        }
 
         JScrollPane tableScroll = new JScrollPane(table);
         tableScroll.setBorder(BorderFactory.createTitledBorder("Senzori Conectați"));
@@ -135,10 +138,8 @@ public class ControllerGui extends JFrame {
             String time = new SimpleDateFormat("HH:mm:ss").format(new Date());
             boolean found = false;
 
-            // Căutăm dacă senzorul există deja în tabel (după ID - coloana 0)
             for (int i = 0; i < tableModel.getRowCount(); i++) {
                 if (tableModel.getValueAt(i, 0).equals(id)) {
-                    // Actualizăm rândul existent
                     tableModel.setValueAt(val, i, 2);
                     tableModel.setValueAt(unit, i, 3);
                     tableModel.setValueAt(status, i, 4);
@@ -148,11 +149,13 @@ public class ControllerGui extends JFrame {
                 }
             }
 
-            // Dacă nu există, adăugăm rând nou
             if (!found) {
                 tableModel.addRow(new Object[]{id, type, val, unit, status, time});
                 logToConsole("Senzor nou detectat: " + id + " [" + type + "]");
             }
+
+            // Forțăm redesenarea întregului tabel pentru a actualiza culorile
+            table.repaint();
         });
     }
 
@@ -169,35 +172,48 @@ public class ControllerGui extends JFrame {
     }
 
     // --- Renderer pentru Culori (Clasă Internă) ---
-    // Această clasă decide culoarea textului în tabel în funcție de coloana "Status"
     private class StatusColorRenderer extends DefaultTableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             
-            // Luăm valoarea din coloana Status (index 4)
             Object statusObj = table.getModel().getValueAt(row, 4);
             String status = (statusObj != null) ? statusObj.toString() : "";
 
-            // Logică Culori
-            if ("NORMAL".equals(status)) {
-                c.setForeground(new Color(0, 180, 0)); // Verde mai închis pentru vizibilitate pe alb
-                if (isDarkTheme()) c.setForeground(new Color(100, 255, 100)); // Verde deschis pe Dark Mode
-            } else if ("WARNING".equals(status)) {
-                c.setForeground(new Color(255, 140, 0)); // Portocaliu
-            } else if ("SENSOR_ERROR".equals(status) || "CRITICAL".equals(status)) {
-                c.setForeground(new Color(220, 50, 50));   // Roșu
-            } else {
-                c.setForeground(UIManager.getColor("Table.foreground")); // Default
+            Color defaultForeground = isSelected ? UIManager.getColor("Table.selectionForeground") : UIManager.getColor("Table.foreground");
+            Color defaultBackground = isSelected ? UIManager.getColor("Table.selectionBackground") : UIManager.getColor("Table.background");
+
+            c.setForeground(defaultForeground);
+            c.setBackground(defaultBackground);
+
+            switch(status) {
+                case "NORMAL":
+                    c.setForeground(isDarkTheme() ? Color.BLACK : Color.WHITE);
+                    c.setBackground(new Color(46, 139, 87)); // SeaGreen
+                    break;
+                case "WARNING":
+                     c.setForeground(isDarkTheme() ? Color.BLACK : Color.WHITE);
+                    c.setBackground(new Color(255, 165, 0)); // Orange
+                    break;
+                case "SENSOR_ERROR":
+                case "CRITICAL":
+                     c.setForeground(isDarkTheme() ? Color.BLACK : Color.WHITE);
+                    c.setBackground(new Color(220, 20, 60));   // Crimson
+                    break;
+                case "INACTIVE":
+                    c.setForeground(isDarkTheme() ? new Color(200, 200, 200) : Color.WHITE);
+                    c.setBackground(Color.DARK_GRAY);
+                    break;
+                case "REGISTERED":
+                    c.setForeground(isDarkTheme() ? Color.BLACK : Color.WHITE);
+                    c.setBackground(new Color(70, 130, 180)); // SteelBlue
+                    break;
             }
-            
             return c;
         }
         
-        // Helper simplu pentru a detecta dacă e Dark Mode (pentru contrast)
         private boolean isDarkTheme() {
             Color bg = UIManager.getColor("Panel.background");
-            // Dacă background-ul e închis la culoare, suntem pe Dark Mode
             return (bg.getRed() + bg.getGreen() + bg.getBlue()) / 3 < 128;
         }
     }
@@ -207,15 +223,15 @@ public class ControllerGui extends JFrame {
         try { UIManager.setLookAndFeel(new FlatDarkLaf()); } catch (Exception ex) {}
 
         SwingUtilities.invokeLater(() -> {
-            // Trimitem null pentru că testăm doar grafica
             ControllerGui gui = new ControllerGui(null);
             gui.setVisible(true);
 
-            // Adăugăm date de test
             gui.logToConsole("Sistem de test inițializat.");
             gui.updateSensor("TEST-01", "Temperatură", "24", "°C", "NORMAL");
             gui.updateSensor("TEST-02", "Presiune", "150", "Bar", "WARNING");
             gui.updateSensor("TEST-03", "Umiditate", "999", "%", "SENSOR_ERROR");
+            gui.updateSensor("TEST-04", "Lumină", "N/A", "lm", "INACTIVE");
+            gui.updateSensor("TEST-05", "Gaz", "N/A", "ppm", "REGISTERED");
         });
     }
 }
