@@ -1,0 +1,50 @@
+[
+  {
+    "baseName": "SenzorTermic",
+    "type": "Temperatură",
+    "unit": "°C",
+    "sliderMin": -50,
+    "sliderMax": 150,
+    "hwMin": -30,
+    "hwMax": 100,
+    "safeMin": 18,
+    "safeMax": 25,
+    "count": 2
+  },
+  {
+    "baseName": "SenzorPresiune",
+    "type": "Presiune Hidraulică",
+    "unit": "Bar",
+    "sliderMin": 0,
+    "sliderMax": 200,
+    "hwMin": 0,
+    "hwMax": 150,
+    "safeMin": 80,
+    "safeMax": 110,
+    "count": 1
+  },
+  {
+    "baseName": "SenzorUmiditate",
+    "type": "Umiditate",
+    "unit": "%",
+    "sliderMin": 0,
+    "sliderMax": 100,
+    "hwMin": 0,
+    "hwMax": 100,
+    "safeMin": 30,
+    "safeMax": 60,
+    "count": 2
+  },
+  {
+    "baseName": "SenzorLumina",
+    "type": "Lumină",
+    "unit": "lm",
+    "sliderMin": 0,
+    "sliderMax": 1000,
+    "hwMin": 0,
+    "hwMax": 800,
+    "safeMin": 300,
+    "safeMax": 500,
+    "count": 1
+  }
+]

@@ -37,51 +37,43 @@ public class MainLauncher {
             // Așteptăm puțin să pornească controller-ul
             Thread.sleep(2000);
 
-            // 3. Lansare Senzor 1: TEMPERATURĂ
-            // Configurație: ID, Tip, Unitate, SliderMin, SliderMax, HwMin, HwMax, SafeMin, SafeMax
-            Object[] argsTemp = new Object[] {
-                "SENS-TEMP-01", "Temperatură", "°C",
-                -50, 150,   // Slider Range
-                -30, 100,   // Hardware Range
-                18, 25      // Safe Range
-            };
-            
-            AgentController acS1 = mainContainer.createNewAgent(
-                "SenzorTermic", 
-                "clase.SensorAgent", 
-                argsTemp
-            );
-            acS1.start();
+            // 3. Lansare dinamică a senzorilor din fișierul JSON
+            try {
+                String content = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("config/sensors.json")));
+                org.json.JSONArray sensorsConfig = new org.json.JSONArray(content);
 
-            // 4. Lansare Senzor 2: PRESIUNE
-            Object[] argsPres = new Object[] {
-                "SENS-PRES-A", "Presiune Hidraulică", "Bar",
-                0, 200,     // Slider
-                0, 150,     // Hardware
-                80, 110     // Safe
-            };
-            
-            AgentController acS2 = mainContainer.createNewAgent(
-                "SenzorPresiune", 
-                "clase.SensorAgent", 
-                argsPres
-            );
-            acS2.start();
+                for (int i = 0; i < sensorsConfig.length(); i++) {
+                    org.json.JSONObject config = sensorsConfig.getJSONObject(i);
+                    String baseName = config.getString("baseName");
+                    int count = config.getInt("count");
 
-            // 5. Lansare Senzor 3: UMIDITATE
-            Object[] argsHum = new Object[] {
-                "SENS-HUM-EXT", "Umiditate", "%",
-                0, 100,
-                0, 100,
-                30, 60
-            };
-            
-            AgentController acS3 = mainContainer.createNewAgent(
-                "SenzorUmiditate", 
-                "clase.SensorAgent", 
-                argsHum
-            );
-            acS3.start();
+                    for (int j = 1; j <= count; j++) {
+                        String agentName = baseName + j;
+                        String sensorId = "SENS-" + config.getString("type").substring(0, 4).toUpperCase() + "-" + j;
+
+                        Object[] sensorArgs = new Object[] {
+                            sensorId,
+                            config.getString("type"),
+                            config.getString("unit"),
+                            config.getInt("sliderMin"),
+                            config.getInt("sliderMax"),
+                            config.getInt("hwMin"),
+                            config.getInt("hwMax"),
+                            config.getInt("safeMin"),
+                            config.getInt("safeMax")
+                        };
+
+                        AgentController acS = mainContainer.createNewAgent(agentName, "clase.SensorAgent", sensorArgs);
+                        acS.start();
+                    }
+                }
+            } catch (java.io.IOException e) {
+                System.err.println("Eroare la citirea fișierului sensors.json: " + e.getMessage());
+                e.printStackTrace();
+            } catch (org.json.JSONException e) {
+                System.err.println("Eroare la parsarea fișierului sensors.json: " + e.getMessage());
+                e.printStackTrace();
+            }
 
         } catch (Exception e) {
             e.printStackTrace();

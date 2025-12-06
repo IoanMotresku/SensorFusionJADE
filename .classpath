@@ -6,12 +6,12 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="lib" path="lib/flatlaf-3.5.jar"/>
 	<classpathentry kind="lib" path="lib/jade.jar" sourcepath="lib/jade-src.jar">
 		<attributes>
-			<attribute name="javadoc_location" value="jar:platform:/resource/Proiect_si/lib/jade-javadocs.jar!/"/>
-			<attribute name="module" value="true"/>
+			<attribute name="javadoc_location" value="jar:platform:/resource/SensorFusionJADE/lib/jade-javadocs.jar!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="C:/Users/Peceu/Desktop/workshop-2/Proiect_si/lib/flatlaf-3.5.jar"/>
+	<classpathentry kind="lib" path="lib/json-20231013.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
