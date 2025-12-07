@@ -1,5 +1,6 @@
-package clase;
+package com.sensorfusion.jade.agents;
 
+import com.sensorfusion.jade.gui.ControllerGui;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
