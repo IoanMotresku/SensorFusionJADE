@@ -221,7 +221,11 @@ public class ControllerGui extends JFrame {
 
     // --- MAIN PENTRU TESTARE VIZUALĂ (Fără JADE) ---
     public static void main(String[] args) {
-        try { UIManager.setLookAndFeel(new FlatDarkLaf()); } catch (Exception ex) {}
+        try { 
+            UIManager.setLookAndFeel(new FlatDarkLaf());
+        } catch (Exception ex) {
+            System.err.println("Failed to initialize LaF.");
+        }
 
         SwingUtilities.invokeLater(() -> {
             ControllerGui gui = new ControllerGui(null);

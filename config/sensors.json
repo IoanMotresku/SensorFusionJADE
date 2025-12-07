@@ -46,5 +46,29 @@
     "safeMin": 300,
     "safeMax": 500,
     "activityTimeoutSeconds": 90
+  },
+  {
+    "baseName": "SenzorGaz",
+    "type": "Gaz",
+    "unit": "ppm",
+    "sliderMin": 0,
+    "sliderMax": 1000,
+    "hwMin": 0,
+    "hwMax": 800,
+    "safeMin": 100,
+    "safeMax": 300,
+    "activityTimeoutSeconds": 60
+  },
+  {
+    "baseName": "SenzorAcceleratie",
+    "type": "Accelerație",
+    "unit": "m/s^2",
+    "sliderMin": -100,
+    "sliderMax": 100,
+    "hwMin": -50,
+    "hwMax": 50,
+    "safeMin": -5,
+    "safeMax": 5,
+    "activityTimeoutSeconds": 120
   }
 ]

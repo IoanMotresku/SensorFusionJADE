@@ -1,10 +1,13 @@
 package com.sensorfusion.jade.gui;
 
+import com.formdev.flatlaf.FlatDarkLaf;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -32,7 +35,30 @@ public class LauncherGui extends JFrame {
 
         setSize(600, 500);
         setLocationRelativeTo(null);
+        
+        // Use DISPOSE_ON_CLOSE to just close the window
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        
+        // Add a listener to shut down the container when the window closes
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                if (peripheralContainer != null) {
+                    logToConsole("Se închide containerul de senzori...");
+                    new Thread(() -> {
+                        try {
+                            peripheralContainer.kill();
+                            logToConsole("Containerul a fost oprit.");
+                        } catch (StaleProxyException spe) {
+                            // Container is already dead, which is fine
+                            logToConsole("Containerul era deja oprit.");
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    }).start();
+                }
+            }
+        });
 
         initComponents();
         loadSensorConfiguration();
@@ -217,6 +243,11 @@ public class LauncherGui extends JFrame {
     }
 
     public static void main(String[] args) {
+        try {
+            UIManager.setLookAndFeel(new FlatDarkLaf());
+        } catch (Exception ex) {
+            System.err.println("Failed to initialize LaF.");
+        }
         SwingUtilities.invokeLater(() -> new LauncherGui().setVisible(true));
     }
 }

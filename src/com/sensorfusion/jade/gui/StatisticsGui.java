@@ -1,16 +1,23 @@
 package com.sensorfusion.jade.gui;
 
+import com.formdev.flatlaf.FlatDarkLaf;
 import com.sensorfusion.jade.agents.StatisticsAgent;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import jade.core.Profile;
+import jade.core.ProfileImpl;
+import jade.core.Runtime;
+import jade.wrapper.AgentContainer;
 
 public class StatisticsGui extends JFrame {
 
@@ -334,40 +341,63 @@ public class StatisticsGui extends JFrame {
 
     // Main method for visual testing
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            StatisticsGui gui = new StatisticsGui(null);
-            
-            // Populate with dummy sensors
-            List<String> dummySensors = new ArrayList<>();
-            dummySensors.add("SenzorTermic1");
-            dummySensors.add("SenzorPresiune1");
-            dummySensors.add("SenzorUmiditate1");
-            gui.setSensorList(dummySensors);
+        try {
+            UIManager.setLookAndFeel(new FlatDarkLaf());
+        } catch (Exception ex) {
+            System.err.println("Failed to initialize LaF.");
+        }
 
-            // Simulate some chart data
-            Map<String, List<Point>> dummyChartData = new ConcurrentHashMap<>();
-            List<Point> data1 = new ArrayList<>();
-            data1.add(new Point(0, ThreadLocalRandom.current().nextInt(10, 30)));
-            data1.add(new Point(1, ThreadLocalRandom.current().nextInt(10, 30)));
-            data1.add(new Point(2, ThreadLocalRandom.current().nextInt(10, 30)));
-            data1.add(new Point(3, ThreadLocalRandom.current().nextInt(10, 30)));
-            dummyChartData.put("SenzorTermic1", data1);
+        // Try to launch as a real agent first
+        try {
+            Runtime rt = Runtime.instance();
+            // Exit the JVM when the platform is shut down
+            rt.setCloseVM(true);
+            Profile p = new ProfileImpl(false); // Non-main container
+            p.setParameter(Profile.MAIN_HOST, "localhost");
+            p.setParameter(Profile.MAIN_PORT, "1099");
+            AgentContainer ac = rt.createAgentContainer(p);
 
-            List<Point> data2 = new ArrayList<>();
-            data2.add(new Point(0, ThreadLocalRandom.current().nextInt(80, 120)));
-            data2.add(new Point(1, ThreadLocalRandom.current().nextInt(80, 120)));
-            data2.add(new Point(2, ThreadLocalRandom.current().nextInt(80, 120)));
-            data2.add(new Point(3, ThreadLocalRandom.current().nextInt(80, 120)));
-            dummyChartData.put("SenzorPresiune1", data2);
-            
-            List<Object[]> dummyTableData = new ArrayList<>();
-            dummyTableData.add(new Object[]{"SenzorTermic1", "2025-12-06 10:00:00", 22});
-            dummyTableData.add(new Object[]{"SenzorTermic1", "2025-12-06 10:01:00", 23});
-            dummyTableData.add(new Object[]{"SenzorPresiune1", "2025-12-06 10:00:00", 98});
+            String agentName = "statistics-gui-launcher-" + System.currentTimeMillis();
+            ac.createNewAgent(agentName, "com.sensorfusion.jade.agents.StatisticsAgent", new Object[]{}).start();
 
-            gui.displayData(dummyChartData, dummyTableData);
+        } catch (Exception e) {
+            System.err.println("JADE platform not found, launching GUI in offline/mock data mode.");
+            // Fallback to offline mode if the platform is not running
+            SwingUtilities.invokeLater(() -> {
+                StatisticsGui gui = new StatisticsGui(null);
 
-            gui.setVisible(true);
-        });
+                // Populate with dummy sensors
+                List<String> dummySensors = new ArrayList<>();
+                dummySensors.add("SenzorTermic1 (Mock)");
+                dummySensors.add("SenzorPresiune1 (Mock)");
+                dummySensors.add("SenzorUmiditate1 (Mock)");
+                gui.setSensorList(dummySensors);
+
+                // Simulate some chart data
+                Map<String, List<Point>> dummyChartData = new ConcurrentHashMap<>();
+                List<Point> data1 = new ArrayList<>();
+                data1.add(new Point(600, ThreadLocalRandom.current().nextInt(10, 30)));
+                data1.add(new Point(601, ThreadLocalRandom.current().nextInt(10, 30)));
+                data1.add(new Point(602, ThreadLocalRandom.current().nextInt(10, 30)));
+                data1.add(new Point(603, ThreadLocalRandom.current().nextInt(10, 30)));
+                dummyChartData.put("SenzorTermic1 (Mock)", data1);
+
+                List<Point> data2 = new ArrayList<>();
+                data2.add(new Point(600, ThreadLocalRandom.current().nextInt(80, 120)));
+                data2.add(new Point(601, ThreadLocalRandom.current().nextInt(80, 120)));
+                data2.add(new Point(602, ThreadLocalRandom.current().nextInt(80, 120)));
+                data2.add(new Point(603, ThreadLocalRandom.current().nextInt(80, 120)));
+                dummyChartData.put("SenzorPresiune1 (Mock)", data2);
+
+                List<Object[]> dummyTableData = new ArrayList<>();
+                dummyTableData.add(new Object[]{"SenzorTermic1 (Mock)", "2025-12-06 10:00:00", 22});
+                dummyTableData.add(new Object[]{"SenzorTermic1 (Mock)", "2025-12-06 10:01:00", 23});
+                dummyTableData.add(new Object[]{"SenzorPresiune1 (Mock)", "2025-12-06 10:00:00", 98});
+
+                gui.displayData(dummyChartData, dummyTableData);
+
+                gui.setVisible(true);
+            });
+        }
     }
 }
