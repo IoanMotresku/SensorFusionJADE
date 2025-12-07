@@ -1,16 +1,11 @@
-package clase;
+package com.sensorfusion.jade.gui;
 
-import jade.core.AID;
-import jade.core.Agent;
+import com.sensorfusion.jade.agents.ShowGuiAgent;
 import jade.core.Profile;
 import jade.core.ProfileImpl;
 import jade.core.Runtime;
-import jade.lang.acl.ACLMessage;
 import jade.wrapper.AgentController;
-import jade.wrapper.StaleProxyException;
 
-// Importul lipsă care cauzează eroarea
-import clase.ShowGuiAgent;
 
 public class StartControllerGui {
 

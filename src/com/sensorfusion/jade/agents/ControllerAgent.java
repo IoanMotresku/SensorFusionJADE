@@ -6,7 +6,9 @@ import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.TickerBehaviour;
+import jade.content.lang.sl.SLCodec;
 import jade.domain.DFService;
+import jade.domain.JADEAgentManagement.JADEManagementOntology;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
@@ -56,6 +58,10 @@ public class ControllerAgent extends Agent {
     @Override
     protected void setup() {
         System.out.println("Controller Agent " + getLocalName() + " pornit.");
+        
+        // Register language and ontology for AMS communication
+        getContentManager().registerLanguage(new SLCodec());
+        getContentManager().registerOntology(JADEManagementOntology.getInstance());
         
         registerService();
         
@@ -224,10 +230,34 @@ public class ControllerAgent extends Agent {
     }
 
     public void shutdownSystem() {
+        if (myGui != null) {
+            myGui.logToConsole("SHUTDOWN command received. Shutting down platform...");
+        }
+        System.out.println(getLocalName() + " is initiating platform shutdown...");
+
         addBehaviour(new OneShotBehaviour() {
             @Override
             public void action() {
-                // ... (logica de shutdown ramane la fel)
+                try {
+                    // Create a request to the AMS to shut down the platform
+                    ACLMessage shutdownMsg = new ACLMessage(ACLMessage.REQUEST);
+                    shutdownMsg.addReceiver(getAMS());
+                    
+                    // Set the language and ontology for the content manager
+                    shutdownMsg.setLanguage(new SLCodec().getName());
+                    shutdownMsg.setOntology(JADEManagementOntology.getInstance().getName());
+                    
+                    // Use the JADE ontology to create the shutdown action
+                    jade.content.onto.basic.Action shutdownAction = new jade.content.onto.basic.Action(getAMS(), new jade.domain.JADEAgentManagement.ShutdownPlatform());
+                    
+                    // Fill the message content with the shutdown action
+                    myAgent.getContentManager().fillContent(shutdownMsg, shutdownAction);
+                    
+                    send(shutdownMsg);
+                } catch (Exception e) {
+                    System.err.println("Error while trying to shut down the platform: " + e);
+                    e.printStackTrace();
+                }
             }
         });
     }

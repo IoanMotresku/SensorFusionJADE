@@ -1,28 +1,16 @@
-package clase;
+package com.sensorfusion.jade.core;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.sensorfusion.jade.agents.ShowGuiAgent;
+import com.sensorfusion.jade.gui.LauncherGui;
+import com.formdev.flatlaf.FlatDarkLaf;
 
-import jade.core.AID;
-import jade.core.Agent;
 import jade.core.Profile;
 import jade.core.ProfileImpl;
 import jade.core.Runtime;
-import jade.core.behaviours.OneShotBehaviour;
-import jade.lang.acl.ACLMessage;
 import jade.wrapper.AgentContainer;
 import jade.wrapper.AgentController;
 import jade.wrapper.ContainerController;
-
 import javax.swing.UIManager;
-
-// Importul lipsă care cauzează eroarea "cannot be resolved to a type"
-import clase.ShowGuiAgent;
-
-import com.formdev.flatlaf.FlatDarkLaf;
-
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 public class SystemStarter {
 
@@ -63,8 +51,8 @@ public class SystemStarter {
             ContainerController mainContainer = rt.createMainContainer(p);
             
             System.out.println("Lansare agenți de sistem (Controller, DatabaseManager)...");
-            mainContainer.createNewAgent("Controller", "clase.ControllerAgent", null).start();
-            mainContainer.createNewAgent("DatabaseManager", "clase.DBAgent", null).start();
+            mainContainer.createNewAgent("Controller", "com.sensorfusion.jade.agents.ControllerAgent", null).start();
+            mainContainer.createNewAgent("DatabaseManager", "com.sensorfusion.jade.agents.DBAgent", null).start();
             System.out.println("Containerul principal și agenții de sistem au pornit cu succes.");
         } catch (Exception e) {
             e.printStackTrace();
@@ -136,7 +124,7 @@ public class SystemStarter {
 
             // Lansăm StatisticsAgent
             String agentName = "StatisticsAgent-" + System.currentTimeMillis();
-            peripheralContainer.createNewAgent(agentName, "clase.StatisticsAgent", null).start();
+            peripheralContainer.createNewAgent(agentName, "com.sensorfusion.jade.agents.StatisticsAgent", null).start();
 
         } catch (Exception e) {
             System.err.println("AUTOSTART: Eroare la lansarea StatisticsAgent.");

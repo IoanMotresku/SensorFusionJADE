@@ -1,4 +1,4 @@
-package clase;
+package com.sensorfusion.jade.agents;
 
 import jade.core.AID;
 import jade.core.Agent;

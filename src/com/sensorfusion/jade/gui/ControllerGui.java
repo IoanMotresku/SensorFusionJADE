@@ -1,6 +1,7 @@
-package clase;
+package com.sensorfusion.jade.gui;
 
 import com.formdev.flatlaf.FlatDarkLaf;
+import com.sensorfusion.jade.agents.ControllerAgent;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;

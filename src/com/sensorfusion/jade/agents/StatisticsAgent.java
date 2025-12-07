@@ -1,5 +1,6 @@
-package clase;
+package com.sensorfusion.jade.agents;
 
+import com.sensorfusion.jade.gui.StatisticsGui;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
@@ -50,6 +51,15 @@ public class StatisticsAgent extends Agent {
                 }
             }
         });
+    }
+
+    @Override
+    protected void takeDown() {
+        System.out.println("Statistics Agent " + getLocalName() + " is shutting down.");
+        // Close the GUI when the agent is terminated
+        if (myGui != null) {
+            SwingUtilities.invokeLater(() -> myGui.dispose());
+        }
     }
 
     private void processIncomingMessage(ACLMessage msg) {

@@ -1,4 +1,4 @@
-package clase;
+package com.sensorfusion.jade.gui;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -13,6 +13,7 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import jade.wrapper.StaleProxyException;
 
 public class LauncherGui extends JFrame {
 
@@ -31,7 +32,7 @@ public class LauncherGui extends JFrame {
 
         setSize(600, 500);
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         initComponents();
         loadSensorConfiguration();
@@ -152,7 +153,7 @@ public class LauncherGui extends JFrame {
                                 config.getInt("activityTimeoutSeconds")
                             };
 
-                            peripheralContainer.createNewAgent(agentName, "clase.SensorAgent", agentArgs).start();
+                            peripheralContainer.createNewAgent(agentName, "com.sensorfusion.jade.agents.SensorAgent", agentArgs).start();
                             logToConsole(" > Agent '" + agentName + "' lansat.");
                             Thread.sleep(100);
                         }
@@ -177,6 +178,14 @@ public class LauncherGui extends JFrame {
                     launchButton.setEnabled(true);
                 });
 
+            } catch (StaleProxyException spe) {
+                logToConsole("EROARE: Conexiunea la platforma JADE a fost pierdută.");
+                logToConsole("Platforma a fost oprită. Reporniți sistemul.");
+                SwingUtilities.invokeLater(() -> {
+                    launchButton.setText("Platforma Oprită");
+                    launchButton.setBackground(new Color(80, 80, 80));
+                    launchButton.setEnabled(false); // Dezactivare permanentă
+                 });
             } catch (Exception e) {
                 logToConsole("EROARE CRITICĂ LA LANSARE: " + e.getMessage());
                 e.printStackTrace();

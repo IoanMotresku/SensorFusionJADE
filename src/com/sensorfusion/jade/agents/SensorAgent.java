@@ -1,6 +1,7 @@
-package clase;
+package com.sensorfusion.jade.agents;
 
 import com.formdev.flatlaf.FlatDarkLaf;
+import com.sensorfusion.jade.gui.SensorGui;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
