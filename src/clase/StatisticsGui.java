@@ -263,12 +263,23 @@ public class StatisticsGui extends JFrame {
 
             // Draw labels and tick marks for Y-axis
             DecimalFormat df = new DecimalFormat("#.##");
-            int yAxisTickCount = 5;
-            for (int i = 0; i < yAxisTickCount; i++) {
-                String yLabel = df.format(minY + (maxY - minY) * i / (yAxisTickCount - 1));
-                int x = PADDING + LABEL_PADDING - LABEL_PADDING / 2;
-                int y = getHeight() - PADDING - LABEL_PADDING - (int) (i * (getHeight() - 2 * PADDING - LABEL_PADDING) / (yAxisTickCount - 1));
-                g2.drawString(yLabel, x - g2.getFontMetrics().stringWidth(yLabel) - 5, y + g2.getFontMetrics().getHeight() / 2);
+            int yAxisTickCount = 10;
+            for (int i = 0; i <= yAxisTickCount; i++) {
+                int y = getHeight() - PADDING - LABEL_PADDING - (int) (i * (getHeight() - 2 * PADDING - LABEL_PADDING) / (double) yAxisTickCount);
+                double yValue = minY + (maxY - minY) * i / (double) yAxisTickCount;
+                String yLabel = df.format(yValue);
+                g2.drawString(yLabel, PADDING + LABEL_PADDING - g2.getFontMetrics().stringWidth(yLabel) - 5, y + g2.getFontMetrics().getAscent() / 2);
+            }
+
+            // Draw labels and tick marks for X-axis
+            int xAxisTickCount = 5;
+            for (int i = 0; i <= xAxisTickCount; i++) {
+                int x = PADDING + LABEL_PADDING + (int) (i * (getWidth() - 2 * PADDING - LABEL_PADDING) / (double) xAxisTickCount);
+                double timeValue = minX + (maxX - minX) * i / (double) xAxisTickCount;
+                int hours = (int) (timeValue / 60);
+                int minutes = (int) (timeValue % 60);
+                String xLabel = String.format("%02d:%02d", hours, minutes);
+                g2.drawString(xLabel, x - g2.getFontMetrics().stringWidth(xLabel) / 2, getHeight() - PADDING + LABEL_PADDING);
             }
 
             // Draw data lines and points
@@ -296,15 +307,29 @@ public class StatisticsGui extends JFrame {
                 }
             }
 
-            // Draw a simple legend
-            int legendX = getWidth() - PADDING - 100;
-            int legendY = PADDING;
+            // Draw a more robust legend
+            int legendX = PADDING + LABEL_PADDING + 10;
+            int legendY = PADDING + 10;
+            int legendWidth = 0;
+            int legendHeight = data.size() * 15 + 10;
+            
+            FontMetrics fm = g2.getFontMetrics();
+            for (String sensorId : data.keySet()) {
+                legendWidth = Math.max(legendWidth, fm.stringWidth(sensorId) + 30);
+            }
+
+            // Draw legend background
+            g2.setColor(new Color(0, 0, 0, 120));
+            g2.fillRect(legendX, legendY, legendWidth, legendHeight);
+
+            // Draw legend items
             g2.setFont(g2.getFont().deriveFont(Font.PLAIN, 12));
+            int currentY = legendY + 15;
             for (Map.Entry<String, List<Point>> entry : data.entrySet()) {
                 g2.setColor(colors.getOrDefault(entry.getKey(), Color.WHITE));
-                g2.fillRect(legendX, legendY, 10, 10);
-                g2.drawString(entry.getKey(), legendX + 15, legendY + 9);
-                legendY += 15;
+                g2.fillRect(legendX + 5, currentY - 10, 10, 10);
+                g2.drawString(entry.getKey(), legendX + 20, currentY);
+                currentY += 15;
             }
         }
     }

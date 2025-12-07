@@ -9,12 +9,18 @@ import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.json.JSONArray;
@@ -29,10 +35,14 @@ public class DBAgent extends Agent {
     
     // Map to store unique sensor IDs and their types
     private final Map<String, String> sensorTypes = new ConcurrentHashMap<>();
+    private boolean isInitialDataFetched = false;
 
     @Override
     protected void setup() {
         System.out.println("DBAgent [" + getLocalName() + "] a pornit. Conectat la Firebase.");
+
+        // Fetch existing sensors from Firebase on startup
+        fetchInitialSensorData();
 
         // 1. Înregistrare în Pagini Aurii (DF)
         registerService();
@@ -104,6 +114,43 @@ public class DBAgent extends Agent {
         }
     }
     
+    private void fetchInitialSensorData() {
+        if (isInitialDataFetched) return;
+
+        System.out.println("DBAgent >> Se preiau senzorii existenți din Firebase...");
+        try {
+            URL url = new URL(FIREBASE_URL + TABLE_NAME + ".json");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
+
+            if (conn.getResponseCode() != 200) {
+                System.err.println("DBAgent >> Eroare la preluarea datelor inițiale, cod: " + conn.getResponseCode());
+                return;
+            }
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+            StringBuilder response = new StringBuilder();
+            String responseLine;
+            while ((responseLine = br.readLine()) != null) {
+                response.append(responseLine.trim());
+            }
+
+            JSONObject allData = new JSONObject(response.toString());
+            for (String key : allData.keySet()) {
+                JSONObject sensorRecord = allData.getJSONObject(key);
+                if (sensorRecord.has("id") && sensorRecord.has("type")) {
+                    addUniqueSensor(sensorRecord.getString("id"), sensorRecord.getString("type"));
+                }
+            }
+            System.out.println("DBAgent >> Preluarea senzorilor finalizată. Senzori unici cunoscuți: " + sensorTypes.size());
+            isInitialDataFetched = true;
+
+        } catch (Exception e) {
+            System.err.println("DBAgent >> Eroare la citirea datelor inițiale din Firebase: " + e.getMessage());
+        }
+    }
+    
     // Adaugă un senzor nou în cache dacă nu există deja
     private void addUniqueSensor(String id, String type) {
         sensorTypes.putIfAbsent(id, type);
@@ -111,6 +158,11 @@ public class DBAgent extends Agent {
     
     // Gestionează cererea pentru toți senzorii
     private void handleGetAllSensors(ACLMessage request) {
+        // Asigură-te că datele inițiale au fost încărcate
+        if (!isInitialDataFetched) {
+            fetchInitialSensorData();
+        }
+        
         JSONArray sensorsArray = new JSONArray();
         for (String id : sensorTypes.keySet()) {
             sensorsArray.put(id);
@@ -125,33 +177,132 @@ public class DBAgent extends Agent {
 
     // Gestionează cererea de date istorice
     private void handleGetSensorData(ACLMessage request) {
-        // Simulăm extragerea datelor din baza de date
-        // Într-o implementare reală, aici s-ar face o interogare la Firebase
         System.out.println("DBAgent a primit o cerere pentru date istorice: " + request.getContent());
-        
-        // Mock data pentru demonstrație
-        JSONObject responseData = new JSONObject();
-        
-        // Exemplu de date pentru SenzorTermic1
-        JSONArray dataTermic1 = new JSONArray();
-        dataTermic1.put(new JSONObject().put("timestamp", "2025-12-06 20:56:10").put("value", 21));
-        dataTermic1.put(new JSONObject().put("timestamp", "2025-12-06 20:56:15").put("value", 22));
-        dataTermic1.put(new JSONObject().put("timestamp", "2025-12-06 20:56:20").put("value", 21));
-        
-        // Exemplu de date pentru SenzorPresiune1
-        JSONArray dataPresiune1 = new JSONArray();
-        dataPresiune1.put(new JSONObject().put("timestamp", "2025-12-06 20:56:12").put("value", 95));
-        dataPresiune1.put(new JSONObject().put("timestamp", "2025-12-06 20:56:17").put("value", 98));
-        dataPresiune1.put(new JSONObject().put("timestamp", "2025-12-06 20:56:22").put("value", 94));
-        
-        responseData.put("SenzorTermic1", dataTermic1);
-        responseData.put("SenzorPresiune1", dataPresiune1);
-        
-        ACLMessage reply = request.createReply();
-        reply.setPerformative(ACLMessage.INFORM);
-        reply.setConversationId("sensor-data-response");
-        reply.setContent(responseData.toString());
-        send(reply);
+
+        try {
+            // Extrage senzorii și perioada de timp din mesaj
+            JSONObject requestContent = new JSONObject(request.getContent());
+            JSONArray requestedSensors = requestContent.getJSONArray("sensors");
+            String range = requestContent.getString("range");
+
+            // Preia toate datele din Firebase
+            URL url = new URL(FIREBASE_URL + TABLE_NAME + ".json");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            if (conn.getResponseCode() != 200) {
+                throw new RuntimeException("Failed : HTTP error code : " + conn.getResponseCode());
+            }
+
+            BufferedReader br = new BufferedReader(new InputStreamReader((conn.getInputStream())));
+            StringBuilder sb = new StringBuilder();
+            String output;
+            while ((output = br.readLine()) != null) {
+                sb.append(output);
+            }
+            conn.disconnect();
+
+            // Filtrează datele și trimite răspunsul
+            JSONObject allData = new JSONObject(sb.toString());
+            JSONObject responseData = parseAndFilterByTime(allData, requestedSensors, range);
+
+            ACLMessage reply = request.createReply();
+            reply.setPerformative(ACLMessage.INFORM);
+            reply.setConversationId("sensor-data-response");
+            reply.setContent(responseData.toString());
+            send(reply);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            ACLMessage reply = request.createReply();
+            reply.setPerformative(ACLMessage.FAILURE);
+            reply.setContent("Eroare la procesarea cererii de date: " + e.getMessage());
+            send(reply);
+        }
+    }
+
+    private JSONObject parseAndFilterByTime(JSONObject allData, JSONArray requestedSensors, String range) {
+        JSONObject filteredData = new JSONObject();
+        long now = System.currentTimeMillis();
+        long timeLimit = 0;
+
+        switch (range) {
+            case "Ultimele 15 minute":
+                timeLimit = now - (15 * 60 * 1000);
+                break;
+            case "Ultima oră":
+                timeLimit = now - (60 * 60 * 1000);
+                break;
+            case "Ultimele 24 de ore":
+                timeLimit = now - (24 * 60 * 60 * 1000);
+                break;
+        }
+        System.out.println("DBAgent >> Filtrare pentru perioada: " + range + ". Limita de timp (epoch): " + timeLimit);
+
+
+        List<String> sensorList = new ArrayList<>();
+        for (int i = 0; i < requestedSensors.length(); i++) {
+            sensorList.add(requestedSensors.getString(i));
+        }
+
+        for (String key : allData.keySet()) {
+            JSONObject record = allData.getJSONObject(key);
+            String sensorId = record.getString("id");
+
+            if (sensorList.contains(sensorId)) {
+                try {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                    String timestampStr = record.getString("timestamp");
+                    Date recordDate = sdf.parse(timestampStr);
+                    
+                    boolean isAfter = recordDate.getTime() >= timeLimit;
+                    System.out.println("DBAgent >> Procesare: " + sensorId + " la " + timestampStr + " (" + recordDate.getTime() + "). Inclus în rezultat: " + isAfter);
+
+                    if (isAfter) {
+                        JSONArray sensorData = filteredData.optJSONArray(sensorId);
+                        if (sensorData == null) {
+                            sensorData = new JSONArray();
+                            filteredData.put(sensorId, sensorData);
+                        }
+                        JSONObject dataPoint = new JSONObject();
+                        dataPoint.put("timestamp", record.getString("timestamp"));
+                        dataPoint.put("value", record.get("val")); // Corectat: folosește "val" în loc de "value"
+                        sensorData.put(dataPoint);
+                    }
+                } catch (Exception e) {
+                     System.err.println("DBAgent >> Eroare la procesarea înregistrării: " + record + " | Eroare: " + e.getMessage());
+                }
+            }
+        }
+        // Sortează datele pentru fiecare senzor înainte de a le returna
+        for (String sensorId : filteredData.keySet()) {
+            JSONArray sensorData = filteredData.getJSONArray(sensorId);
+            List<JSONObject> dataList = new ArrayList<>();
+            for (int i = 0; i < sensorData.length(); i++) {
+                dataList.add(sensorData.getJSONObject(i));
+            }
+
+            Collections.sort(dataList, new Comparator<JSONObject>() {
+                private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                @Override
+                public int compare(JSONObject o1, JSONObject o2) {
+                    try {
+                        Date d1 = sdf.parse(o1.getString("timestamp"));
+                        Date d2 = sdf.parse(o2.getString("timestamp"));
+                        return d1.compareTo(d2);
+                    } catch (Exception e) {
+                        return 0;
+                    }
+                }
+            });
+
+            // Reconstruiește JSONArray-ul sortat
+            JSONArray sortedSensorData = new JSONArray(dataList);
+            filteredData.put(sensorId, sortedSensorData);
+        }
+
+        System.out.println("DBAgent >> Date filtrate și sortate returnate: " + filteredData);
+        return filteredData;
     }
 
     // Înregistrarea serviciului în Pagini Aurii

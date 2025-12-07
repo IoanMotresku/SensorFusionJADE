@@ -14,7 +14,9 @@ import org.json.JSONObject;
 
 import javax.swing.*;
 import java.awt.Point;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -100,13 +102,27 @@ public class StatisticsAgent extends Agent {
                     JSONObject dataPoint = sensorDataArray.getJSONObject(i);
                     String timestamp = dataPoint.getString("timestamp");
                     int value = dataPoint.getInt("value");
-                    points.add(new Point(i, value)); // Using 'i' as a simple x-coordinate for now
+                    
+                    // Convert timestamp to a numerical value for the chart's x-axis
+                    int timeValue = getMinuteOfDay(timestamp);
+                    points.add(new Point(timeValue, value));
+                    
                     tableData.add(new Object[]{sensorId, timestamp, value});
                 }
                 chartData.put(sensorId, points);
             }
         } catch (Exception e) {
             System.err.println("Error parsing sensor data response: " + e.getMessage());
+        }
+    }
+
+    private int getMinuteOfDay(String timestamp) {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            Date date = sdf.parse(timestamp);
+            return date.getHours() * 60 + date.getMinutes();
+        } catch (Exception e) {
+            return 0; // În caz de eroare, returnează 0
         }
     }
 
