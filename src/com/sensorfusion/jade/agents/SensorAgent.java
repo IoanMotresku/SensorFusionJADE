@@ -39,6 +39,14 @@ public class SensorAgent extends Agent {
     protected void setup() {
         // --- 1. PRELUARE ARGUMENTE (De la Launcher) ---
         Object[] args = getArguments();
+
+        System.out.println("DEBUG: SensorAgent " + getLocalName() + " started.");
+        if (args != null) {
+            System.out.println("DEBUG: Args length: " + args.length);
+            for (Object o : args) {
+                System.out.println("DEBUG Arg: " + o);
+            }
+        }
         
         if (args != null && args.length >= 10) {
             // Ordinea contează: ID, Type, Unit, SliderMin, SliderMax, HwMin, HwMax, SafeMin, SafeMax, Timeout
@@ -81,7 +89,8 @@ public class SensorAgent extends Agent {
                 SENSOR_ID, SENSOR_TYPE, SENSOR_UNIT,
                 SLIDER_MIN, SLIDER_MAX,
                 HW_MIN, HW_MAX,
-                SAFE_MIN, SAFE_MAX
+                SAFE_MIN, SAFE_MAX,
+                activityTimeoutSeconds
             );
         });
 
@@ -152,7 +161,7 @@ public class SensorAgent extends Agent {
         });
     }
 
-    public void processSensorData(int val) {
+    public void processSensorData(int val, int period) {
         addBehaviour(new OneShotBehaviour() {
             @Override
             public void action() {
@@ -168,8 +177,8 @@ public class SensorAgent extends Agent {
                 }
 
                 String contentJson = String.format(
-                    "{\"id\":\"%s\", \"type\":\"%s\", \"val\":%d, \"unit\":\"%s\", \"status\":\"%s\"}",
-                    getLocalName(), SENSOR_TYPE, val, SENSOR_UNIT, status
+                    "{\"id\":\"%s\", \"type\":\"%s\", \"val\":%d, \"unit\":\"%s\", \"status\":\"%s\", \"period\":%d}",
+                    getLocalName(), SENSOR_TYPE, val, SENSOR_UNIT, status, period
                 );
 
                 if (controllerAID != null && registered) {

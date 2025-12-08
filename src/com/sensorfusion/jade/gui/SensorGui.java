@@ -22,7 +22,14 @@ public class SensorGui extends JFrame {
     // Componente Simulare
     private JSlider slider;
     private JLabel valueLabel;
+    // Status Text
     private JLabel statusLabel; 
+
+    // Componente Auto-Simulare
+    private JToggleButton activeToggle;
+    private JSpinner periodSpinner;
+    private Timer simulationTimer;
+    private final java.util.Random random = new java.util.Random(); // Keep random for potential manual simulation or future use
 
     // Date de configurare curente
     private String currentUnit = "";
@@ -38,7 +45,7 @@ public class SensorGui extends JFrame {
         this.myAgent = agent;
 
         // Configurare fereastră
-        setSize(400, 450);
+        setSize(400, 450); // Adjusted height
         setLocationRelativeTo(null); // Centrat
         // IMPORTANT: Nu folosim EXIT_ON_CLOSE, care ar închide toată platforma JADE.
         // În schimb, notificăm agentul să se închidă singur.
@@ -93,12 +100,60 @@ public class SensorGui extends JFrame {
         simPanel.setLayout(new BoxLayout(simPanel, BoxLayout.Y_AXIS));
         simPanel.setBorder(BorderFactory.createTitledBorder("Simulare Mediu"));
 
+        // Control Panel for Auto-Send
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        
+        activeToggle = new JToggleButton("Active", true);
+        activeToggle.setForeground(Color.GREEN);
+
+        periodSpinner = new JSpinner(new SpinnerNumberModel(3000, 100, 60000, 100));
+        periodSpinner.setToolTipText("Transmission Period (ms)");
+        
+        controlPanel.add(activeToggle);
+        controlPanel.add(new JLabel("Perioada (ms):"));
+        controlPanel.add(periodSpinner);
+
+        // Configurare Timer Simulare (default 3000ms, will be updated)
+        simulationTimer = new Timer(3000, e -> {
+            if (slider.isEnabled() && myAgent != null) {
+                int val = slider.getValue();
+                int period = (Integer) periodSpinner.getValue();
+                myAgent.processSensorData(val, period);
+            }
+        });
+
+        activeToggle.addActionListener(e -> {
+            if (activeToggle.isSelected()) {
+                activeToggle.setText("Active");
+                activeToggle.setForeground(Color.GREEN);
+                startAutoSend();
+            } else {
+                activeToggle.setText("Inactive");
+                activeToggle.setForeground(Color.RED);
+                stopAutoSend();
+            }
+        });
+
         // Slider
         slider = new JSlider(0, 100, 0);
         slider.setEnabled(false); // Blocat până la configurare
         slider.setMajorTickSpacing(20);
         slider.setPaintTicks(true);
         slider.setPaintLabels(true);
+        
+        // Listener pentru interacțiunea manuală (Mouse)
+        slider.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                // Dacă userul atinge sliderul, oprim modul auto
+                if (activeToggle.isSelected()) {
+                    activeToggle.setSelected(false);
+                    activeToggle.setText("Inactive");
+                    activeToggle.setForeground(Color.RED);
+                    stopAutoSend();
+                }
+            }
+        });
 
         // Valoare Mare
         valueLabel = new JLabel("---");
@@ -113,22 +168,27 @@ public class SensorGui extends JFrame {
 
         // --- LOGICA EVENIMENTELOR ---
         slider.addChangeListener(e -> {
-            if (!slider.getValueIsAdjusting()) {
-                int val = slider.getValue();
-                
-                // 1. Actualizăm culorile local
-                updateVisuals(val);
-                
-                // 2. Trimitem datele către Agent (dacă există)
-                if (myAgent != null) {
-                    myAgent.processSensorData(val);
-                }
-            } else {
-                // Update vizual în timp ce tragem de slider (fără a trimite la agent)
-                updateVisuals(slider.getValue());
+            // Trimitem datele fie la finalul mișcării (manual), fie oricând în mod auto
+            // În mod auto, setValue() nu setează 'valueIsAdjusting', deci intrăm direct aici.
+            // La manual, vrem doar când dă drumul la mouse, DAR pentru update vizual vrem mereu.
+            
+            int val = slider.getValue();
+            updateVisuals(val); // Update vizual instant
+            
+            // Trimitem la agent doar dacă:
+            // 1. E mod Auto (timerul a trimis valoarea)
+            // 2. SAU Userul a terminat de tras de slider (!getValueIsAdjusting)
+            // NOTA: Când activeToggle este activ, slider.getValueIsAdjusting() ar trebui să fie fals,
+            // iar valoarea este trimisă de simulationTimer.
+            // Când activeToggle este inactiv, trimitem doar la ajustare manuală.
+            if (myAgent != null && (!activeToggle.isSelected() || !slider.getValueIsAdjusting())) {
+                int period = (Integer) periodSpinner.getValue();
+                myAgent.processSensorData(val, period);
             }
         });
 
+        simPanel.add(Box.createVerticalStrut(10));
+        simPanel.add(controlPanel); // Adăugăm panoul de control
         simPanel.add(Box.createVerticalStrut(10));
         simPanel.add(slider);
         simPanel.add(valueLabel);
@@ -141,6 +201,19 @@ public class SensorGui extends JFrame {
         mainPanel.add(simPanel);
 
         add(mainPanel);
+    }
+
+    private void startAutoSend() {
+        int period = (Integer) periodSpinner.getValue();
+        simulationTimer.setDelay(period);
+        simulationTimer.start();
+        
+        periodSpinner.setEnabled(false);
+    }
+
+    private void stopAutoSend() {
+        simulationTimer.stop();
+        periodSpinner.setEnabled(true);
     }
 
     /**
@@ -176,12 +249,14 @@ public class SensorGui extends JFrame {
             String id, String type, String unit,
             int sliderMin, int sliderMax, // Interval Simulare
             int hwMin, int hwMax,         // Interval Hardware
-            int safeMin, int safeMax      // Interval Safe
+            int safeMin, int safeMax,     // Interval Safe
+            int periodSeconds             // Period from JSON
     ) {
+        System.out.println("DEBUG: updateConfiguration called for " + type + " with periodSeconds=" + periodSeconds);
         // 1. Actualizare variabile interne
         this.currentUnit = unit;
         this.hwMin = hwMin;
-        this.hwMax = hwMax;
+        this.hwMax = hwMax; 
         this.safeMin = safeMin;
         this.safeMax = safeMax;
 
@@ -203,6 +278,12 @@ public class SensorGui extends JFrame {
         slider.setMinorTickSpacing(majorTick / 2);
         slider.setLabelTable(null); // Reset etichete vechi
         
+        // 4. Configurare Perioada (din JSON)
+        int periodMs = periodSeconds * 1000;
+        // Ajustăm modelul spinner-ului pentru a permite valori mai mari (ex: 120s = 120000ms)
+        periodSpinner.setModel(new SpinnerNumberModel(periodMs, 100, 300000, 100));
+        periodSpinner.setValue(periodMs);
+
         // Pornim cu slider-ul pe o valoare sigură (mijlocul intervalului safe)
         int startVal = (safeMin + safeMax) / 2;
         slider.setValue(startVal);
@@ -210,6 +291,11 @@ public class SensorGui extends JFrame {
         
         // Update inițial
         updateVisuals(startVal);
+        
+        // Dacă modul Auto este activ, pornim timerul cu noua perioadă
+        if (activeToggle.isSelected()) {
+            startAutoSend();
+        }
     }
 
     // --- MAIN PENTRU TESTARE VIZUALĂ (Fără JADE) ---
@@ -229,7 +315,8 @@ public class SensorGui extends JFrame {
                     "°C",
                     -50, 150,   // Slider (Userul poate exagera mult)
                     -20, 100,   // Hardware (Senzorul crapă la 100+)
-                    18, 24      // Safe (Temperatura ideală)
+                    18, 24,     // Safe (Temperatura ideală)
+                    30          // Period (seconds)
                 );
                 ((Timer)e.getSource()).stop();
             }).start();

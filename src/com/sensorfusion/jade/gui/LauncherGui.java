@@ -119,6 +119,7 @@ public class LauncherGui extends JFrame {
     private void loadSensorConfiguration() {
         try {
             String content = new String(Files.readAllBytes(Paths.get("config/sensors.json")));
+            System.out.println("DEBUG: Loaded sensors.json content: " + content);
             sensorConfigs = new JSONArray(content);
             GridBagConstraints gbc = new GridBagConstraints();
             gbc.insets = new Insets(5, 5, 5, 5);

@@ -58,7 +58,7 @@
     "safeMin": 100,
     "safeMax": 300,
     "activityTimeoutSeconds": 60
-  },
+  },	
   {
     "baseName": "SenzorAcceleratie",
     "type": "Accelerație",
