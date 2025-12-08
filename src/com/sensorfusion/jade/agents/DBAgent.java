@@ -183,7 +183,12 @@ public class DBAgent extends Agent {
             // Extrage senzorii și perioada de timp din mesaj
             JSONObject requestContent = new JSONObject(request.getContent());
             JSONArray requestedSensors = requestContent.getJSONArray("sensors");
-            String range = requestContent.getString("range");
+            
+            // Verifică dacă se folosește un interval de date specific sau unul predefinit
+            String range = requestContent.optString("range", null);
+            String startDate = requestContent.optString("startDate", null);
+            String endDate = requestContent.optString("endDate", null);
+
 
             // Preia toate datele din Firebase
             URL url = new URL(FIREBASE_URL + TABLE_NAME + ".json");
@@ -204,7 +209,7 @@ public class DBAgent extends Agent {
 
             // Filtrează datele și trimite răspunsul
             JSONObject allData = new JSONObject(sb.toString());
-            JSONObject responseData = parseAndFilterByTime(allData, requestedSensors, range);
+            JSONObject responseData = parseAndFilterData(allData, requestedSensors, range, startDate, endDate);
 
             ACLMessage reply = request.createReply();
             reply.setPerformative(ACLMessage.INFORM);
@@ -221,23 +226,38 @@ public class DBAgent extends Agent {
         }
     }
 
-    private JSONObject parseAndFilterByTime(JSONObject allData, JSONArray requestedSensors, String range) {
+    private JSONObject parseAndFilterData(JSONObject allData, JSONArray requestedSensors, String range, String startDateStr, String endDateStr) {
         JSONObject filteredData = new JSONObject();
-        long now = System.currentTimeMillis();
-        long timeLimit = 0;
+        long startTime = 0;
+        long endTime = Long.MAX_VALUE;
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-        switch (range) {
-            case "Ultimele 15 minute":
-                timeLimit = now - (15 * 60 * 1000);
-                break;
-            case "Ultima oră":
-                timeLimit = now - (60 * 60 * 1000);
-                break;
-            case "Ultimele 24 de ore":
-                timeLimit = now - (24 * 60 * 60 * 1000);
-                break;
+        try {
+            if (startDateStr != null && endDateStr != null) {
+                // Filtrare după un interval de date specific
+                startTime = sdf.parse(startDateStr).getTime();
+                endTime = sdf.parse(endDateStr).getTime();
+                System.out.println("DBAgent >> Filtrare pentru interval specific: " + startDateStr + " -> " + endDateStr);
+            } else if (range != null) {
+                // Filtrare după un interval predefinit
+                long now = System.currentTimeMillis();
+                switch (range) {
+                    case "Ultimele 15 minute":
+                        startTime = now - (15 * 60 * 1000);
+                        break;
+                    case "Ultima oră":
+                        startTime = now - (60 * 60 * 1000);
+                        break;
+                    case "Ultimele 24 de ore":
+                        startTime = now - (24 * 60 * 60 * 1000);
+                        break;
+                }
+                System.out.println("DBAgent >> Filtrare pentru perioada: " + range + ". Limita de timp (epoch): " + startTime);
+            }
+        } catch (Exception e) {
+            System.err.println("DBAgent >> Eroare la parsarea datelor calendaristice: " + e.getMessage());
+            return filteredData; // Returnează date goale în caz de eroare
         }
-        System.out.println("DBAgent >> Filtrare pentru perioada: " + range + ". Limita de timp (epoch): " + timeLimit);
 
 
         List<String> sensorList = new ArrayList<>();
@@ -251,14 +271,13 @@ public class DBAgent extends Agent {
 
             if (sensorList.contains(sensorId)) {
                 try {
-                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                     String timestampStr = record.getString("timestamp");
                     Date recordDate = sdf.parse(timestampStr);
+                    long recordTime = recordDate.getTime();
                     
-                    boolean isAfter = recordDate.getTime() >= timeLimit;
-                    System.out.println("DBAgent >> Procesare: " + sensorId + " la " + timestampStr + " (" + recordDate.getTime() + "). Inclus în rezultat: " + isAfter);
-
-                    if (isAfter) {
+                    boolean isInRange = recordTime >= startTime && recordTime <= endTime;
+                    
+                    if (isInRange) {
                         JSONArray sensorData = filteredData.optJSONArray(sensorId);
                         if (sensorData == null) {
                             sensorData = new JSONArray();
@@ -266,7 +285,7 @@ public class DBAgent extends Agent {
                         }
                         JSONObject dataPoint = new JSONObject();
                         dataPoint.put("timestamp", record.getString("timestamp"));
-                        dataPoint.put("value", record.get("val")); // Corectat: folosește "val" în loc de "value"
+                        dataPoint.put("value", record.get("val"));
                         sensorData.put(dataPoint);
                     }
                 } catch (Exception e) {
@@ -283,12 +302,12 @@ public class DBAgent extends Agent {
             }
 
             Collections.sort(dataList, new Comparator<JSONObject>() {
-                private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                private final SimpleDateFormat sortSdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 @Override
                 public int compare(JSONObject o1, JSONObject o2) {
                     try {
-                        Date d1 = sdf.parse(o1.getString("timestamp"));
-                        Date d2 = sdf.parse(o2.getString("timestamp"));
+                        Date d1 = sortSdf.parse(o1.getString("timestamp"));
+                        Date d2 = sortSdf.parse(o2.getString("timestamp"));
                         return d1.compareTo(d2);
                     } catch (Exception e) {
                         return 0;

@@ -80,9 +80,14 @@ public class SystemStarter {
         requestControllerGui();
 
         // 4. Lansăm agentul de statistici
-        try { Thread.sleep(2500); } catch (InterruptedException e) {}
+        try { Thread.sleep(500); } catch (InterruptedException e) {}
         System.out.println("AUTOSTART: Se deschide StatisticsGui...");
         launchStatisticsAgent();
+
+        // 5. Lansăm agentul Pydantic AI
+        try { Thread.sleep(500); } catch (InterruptedException e) {}
+        System.out.println("AUTOSTART: Se deschide PydanticAiGui...");
+        launchPydanticAiAgent();
     }
 
     /**
@@ -128,6 +133,27 @@ public class SystemStarter {
 
         } catch (Exception e) {
             System.err.println("AUTOSTART: Eroare la lansarea StatisticsAgent.");
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Lansează PydanticAiAgent.
+     */
+    private static void launchPydanticAiAgent() {
+        try {
+            Runtime rt = Runtime.instance();
+            Profile p = new ProfileImpl(false); // Profil pentru container periferic
+            p.setParameter(Profile.MAIN_HOST, "localhost");
+            p.setParameter(Profile.MAIN_PORT, "1099");
+            AgentContainer peripheralContainer = rt.createAgentContainer(p);
+
+            // Lansăm PydanticAiAgent
+            String agentName = "PydanticAiAgent-" + System.currentTimeMillis();
+            peripheralContainer.createNewAgent(agentName, "com.sensorfusion.jade.agents.PydanticAiAgent", null).start();
+
+        } catch (Exception e) {
+            System.err.println("AUTOSTART: Eroare la lansarea PydanticAiAgent.");
             e.printStackTrace();
         }
     }
