@@ -1,0 +1,14 @@
+# Eclipse IDE
+.metadata/
+.settings/
+
+# Compiled Java class files
+/bin/
+
+# Python virtual environment in PythonService
+/PythonService/venv/
+
+# Log files
+*.log
+MTPs-Main-Container.txt
+APDescription.txt

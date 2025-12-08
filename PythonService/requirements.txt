@@ -1,0 +1,14 @@
+# Framework-ul Web
+fastapi
+uvicorn[standard]
+
+# AI & Pydantic (include suportul pentru Google Gemini)
+pydantic-ai[google]
+pydantic
+
+# Utilitare pentru variabile de mediu (.env) și HTTP
+python-dotenv
+httpx
+
+# (Opțional) Pentru debugging frumos în consolă
+devtools
